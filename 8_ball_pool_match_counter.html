@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100 select-none">
+<head>
+  <meta charset="UTF-8">
+  <!-- iOS & Mobile Viewport settings for Home Screen Web App (iPhone 11 support) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="8-Ball Counter">
+  <meta name="theme-color" content="#020617">
+  
+  <title>8-Ball Pool Match Counter</title>
+
+  <!-- SVG Apple Touch Icon (Glossy 8-Ball) -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><radialGradient id='ball' cx='35%' cy='30%' r='70%'><stop offset='0%' stop-color='%23334155'/><stop offset='50%' stop-color='%230f172a'/><stop offset='100%' stop-color='%23020617'/></radialGradient><radialGradient id='shine' cx='30%' cy='20%' r='40%'><stop offset='0%' stop-color='%23ffffff' stop-opacity='0.4'/><stop offset='100%' stop-color='%23ffffff' stop-opacity='0'/></radialGradient></defs><circle cx='256' cy='256' r='240' fill='url(%23ball)'/><circle cx='256' cy='256' r='240' fill='url(%23shine)'/><circle cx='256' cy='256' r='100' fill='%23ffffff'/><text x='256' y='288' font-family='Arial,sans-serif' font-weight='900' font-size='105' text-anchor='middle' fill='%230f172a'>8</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><circle cx='256' cy='256' r='240' fill='%23090d16'/><circle cx='256' cy='256' r='100' fill='%23ffffff'/><text x='256' y='288' font-family='Arial,sans-serif' font-weight='900' font-size='105' text-anchor='middle' fill='%230f172a'>8</text></svg>">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Canvas Confetti CDN for Match Victory -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            felt: {
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+              950: '#022c22',
+            },
+            gold: {
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+            }
+          },
+          boxShadow: {
+            'felt-glow': '0 0 25px -5px rgba(16, 185, 129, 0.3)',
+            'gold-glow': '0 0 25px -5px rgba(245, 158, 11, 0.4)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* iOS Safe Area Insets Padding */
+    body {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    /* Custom Felt Texture pattern */
+    .felt-bg {
+      background-color: #031c15;
+      background-image: radial-gradient(circle at 50% 50%, #064e3b 0%, #022c22 70%, #021a14 100%);
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Pool Ball Badge Animations */
+    @keyframes pulse-gold {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.08); opacity: 0.85; }
+    }
+    .animate-pulse-gold {
+      animation: pulse-gold 2s infinite ease-in-out;
+    }
+
+    /* Hide scrollbars */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+
+<body class="h-full flex flex-col justify-between overflow-hidden felt-bg text-slate-100 font-sans antialiased">
+
+  <!-- TOP APP HEADER BAR -->
+  <header class="w-full px-4 pt-3 pb-2 flex items-center justify-between z-20 shrink-0 border-b border-emerald-900/40 glass-panel">
+    <div class="flex items-center gap-2.5">
+      <!-- Glossy 8-Ball Icon -->
+      <div class="w-9 h-9 rounded-full bg-slate-900 border border-slate-700 shadow-md flex items-center justify-center relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/20"></div>
+        <div class="w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-inner">
+          <span class="text-[10px] font-extrabold text-slate-950 leading-none">8</span>
+        </div>
+      </div>
+      <div>
+        <h1 class="text-base font-extrabold tracking-tight text-white flex items-center gap-1.5 leading-none">
+          CUE COUNTER <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">8-BALL</span>
+        </h1>
+        <p class="text-[10px] font-semibold text-emerald-400/80 leading-tight mt-0.5" id="headerMatchStatus">Match Counter</p>
+      </div>
+    </div>
+
+    <!-- Right Header Quick Controls -->
+    <div class="flex items-center gap-2">
+      <!-- Sound Mute Toggle -->
+      <button id="soundToggleBtn" aria-label="Toggle Sound" class="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-300 active:scale-95 transition-all">
+        <i data-lucide="volume-2" class="w-4 h-4 text-emerald-400" id="soundOnIcon"></i>
+        <i data-lucide="volume-x" class="w-4 h-4 text-slate-500 hidden" id="soundOffIcon"></i>
+      </button>
+
+      <!-- History Modal Toggle -->
+      <button id="historyBtn" aria-label="Match History" class="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-300 active:scale-95 transition-all">
+        <i data-lucide="history" class="w-4 h-4 text-emerald-400"></i>
+      </button>
+
+      <!-- iOS Safari Install Guide Icon -->
+      <button id="pwaGuideBtn" aria-label="Add to Home Screen Guide" class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 active:scale-95 transition-all">
+        <i data-lucide="smartphone" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+
+  <!-- MAIN CONTAINER (SCREENS SWITCH HERE) -->
+  <main class="flex-1 relative overflow-hidden flex flex-col">
+
+    <!-- ============================================================== -->
+    <!-- SCREEN 1: MATCH SETUP FORM -->
+    <!-- ============================================================== -->
+    <section id="setupScreen" class="absolute inset-0 p-4 sm:p-6 overflow-y-auto no-scrollbar flex flex-col justify-between z-10 transition-all duration-300">
+      
+      <div class="max-w-md mx-auto w-full space-y-5 my-auto py-2">
+        
+        <!-- Header Banner -->
+        <div class="text-center space-y-1">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+            <i data-lucide="trophy" class="w-3.5 h-3.5"></i> New Match Setup
+          </span>
+          <h2 class="text-2xl font-black text-white tracking-tight">Configure Your Race</h2>
+        </div>
+
+        <!-- Player Names Input Card -->
+        <div class="glass-panel rounded-2xl p-4 space-y-4 shadow-xl">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <label class="text-xs font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <i data-lucide="users" class="w-4 h-4"></i> Competitors
+            </label>
+            <button type="button" id="swapPlayersBtn" class="text-xs font-bold text-slate-400 hover:text-amber-400 flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800/80 border border-slate-700/50 active:scale-95 transition-all">
+              <i data-lucide="arrow-right-left" class="w-3.5 h-3.5"></i> Swap
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3">
+            <!-- Player 1 Name -->
+            <div class="space-y-1">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Player 1</span>
+              <div class="relative flex items-center">
+                <input type="text" id="p1NameInput" value="Player 1" placeholder="Player 1 Name" maxlength="16" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-3 text-sm font-bold text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                <div class="absolute right-3 w-3 h-3 rounded-full bg-emerald-500"></div>
+              </div>
+            </div>
+
+            <!-- Player 2 Name -->
+            <div class="space-y-1">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Player 2</span>
+              <div class="relative flex items-center">
+                <input type="text" id="p2NameInput" value="Player 2" placeholder="Player 2 Name" maxlength="16" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-3 text-sm font-bold text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                <div class="absolute right-3 w-3 h-3 rounded-full bg-amber-500"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Target Score ("Race To") Selection -->
+        <div class="glass-panel rounded-2xl p-4 space-y-3 shadow-xl">
+          <label class="text-xs font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <i data-lucide="target" class="w-4 h-4"></i> Match Target (Race To)
+          </label>
+
+          <div class="grid grid-cols-5 gap-2" id="raceTargetGrid">
+            <button type="button" data-target="3" class="race-btn py-2.5 rounded-xl font-black text-sm border bg-emerald-600 border-emerald-400 text-white shadow-felt-glow transition-all">3</button>
+            <button type="button" data-target="5" class="race-btn py-2.5 rounded-xl font-black text-sm border border-slate-800 bg-slate-900/80 text-slate-300 hover:border-slate-700 transition-all">5</button>
+            <button type="button" data-target="7" class="race-btn py-2.5 rounded-xl font-black text-sm border border-slate-800 bg-slate-900/80 text-slate-300 hover:border-slate-700 transition-all">7</button>
+            <button type="button" data-target="9" class="race-btn py-2.5 rounded-xl font-black text-sm border border-slate-800 bg-slate-900/80 text-slate-300 hover:border-slate-700 transition-all">9</button>
+            <button type="button" data-target="11" class="race-btn py-2.5 rounded-xl font-black text-sm border border-slate-800 bg-slate-900/80 text-slate-300 hover:border-slate-700 transition-all">11</button>
+          </div>
+
+          <!-- Custom Target Slider/Input -->
+          <div class="flex items-center gap-3 pt-1">
+            <span class="text-xs font-semibold text-slate-400">Custom Target:</span>
+            <input type="number" id="customTargetInput" min="1" max="50" placeholder="Custom" class="w-20 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-center font-bold text-xs text-white focus:outline-none focus:border-emerald-500">
+            <span class="text-xs font-bold text-emerald-400" id="selectedTargetLabel">First to 3 Racks</span>
+          </div>
+        </div>
+
+        <!-- Initial Break & Break Rule Selection -->
+        <div class="glass-panel rounded-2xl p-4 space-y-3 shadow-xl">
+          <label class="text-xs font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <i data-lucide="disc" class="w-4 h-4"></i> Break Rules
+          </label>
+
+          <!-- Who Breaks First -->
+          <div class="space-y-1.5">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">First Rack Breaker</span>
+            <div class="grid grid-cols-3 gap-2" id="firstBreakGrid">
+              <button type="button" data-breaker="1" class="break-first-btn py-2 px-1 rounded-xl text-xs font-bold border border-emerald-500 bg-emerald-600/30 text-emerald-300 text-center transition-all">Player 1</button>
+              <button type="button" data-breaker="2" class="break-first-btn py-2 px-1 rounded-xl text-xs font-bold border border-slate-800 bg-slate-900 text-slate-400 text-center transition-all">Player 2</button>
+              <button type="button" id="coinFlipBtn" class="py-2 px-1 rounded-xl text-xs font-bold border border-amber-500/50 bg-amber-500/10 text-amber-400 text-center hover:bg-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-1">
+                <i data-lucide="coins" class="w-3.5 h-3.5"></i> Coin Flip
+              </button>
+            </div>
+          </div>
+
+          <!-- Subsequent Rack Break Order -->
+          <div class="space-y-1.5 pt-1">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Rack Break Rotation</span>
+            <select id="breakRuleSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-500">
+              <option value="alternate">Alternate Break (Standard)</option>
+              <option value="winner">Winner Breaks (Winner Stays)</option>
+              <option value="loser">Loser Breaks</option>
+              <option value="manual">Manual Breaker Selection</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Optional Shot Clock Toggle -->
+        <div class="glass-panel rounded-2xl p-4 space-y-3 shadow-xl">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <i data-lucide="timer" class="w-4 h-4"></i> Shot Clock
+            </label>
+            <span class="text-xs font-bold text-slate-400" id="shotClockStatusText">Off</span>
+          </div>
+
+          <div class="grid grid-cols-4 gap-2" id="shotClockGrid">
+            <button type="button" data-time="0" class="clock-btn py-2 rounded-xl text-xs font-bold border border-emerald-500 bg-emerald-600 text-white transition-all">OFF</button>
+            <button type="button" data-time="30" class="clock-btn py-2 rounded-xl text-xs font-bold border border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700 transition-all">30s</button>
+            <button type="button" data-time="45" class="clock-btn py-2 rounded-xl text-xs font-bold border border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700 transition-all">45s</button>
+            <button type="button" data-time="60" class="clock-btn py-2 rounded-xl text-xs font-bold border border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700 transition-all">60s</button>
+          </div>
+        </div>
+
+        <!-- Start Match Action Button -->
+        <button type="button" id="startMatchBtn" class="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-felt-600 hover:from-emerald-400 hover:to-felt-500 text-slate-950 font-black text-lg shadow-felt-glow uppercase tracking-wider flex items-center justify-center gap-2 active:scale-98 transition-all">
+          <i data-lucide="play" class="w-6 h-6 fill-current"></i> Start Match
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- ============================================================== -->
+    <!-- SCREEN 2: ACTIVE MATCH COUNTER SCREEN -->
+    <!-- ============================================================== -->
+    <section id="counterScreen" class="absolute inset-0 p-3 sm:p-5 flex flex-col justify-between hidden z-10">
+
+      <!-- Match Info Header Bar -->
+      <div class="glass-panel rounded-2xl px-3.5 py-2.5 flex items-center justify-between shadow-lg border border-slate-800 shrink-0">
+        <!-- Target Info & Elapsed Time -->
+        <div class="flex items-center gap-3">
+          <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-black border border-emerald-500/30" id="matchTargetBadge">
+            RACE TO 3
+          </span>
+          <div class="flex items-center gap-1 text-slate-400 text-xs font-mono font-bold">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-500"></i>
+            <span id="matchElapsedTimer">00:00</span>
+          </div>
+        </div>
+
+        <!-- Shot Clock Timer Widget (If Enabled) -->
+        <div id="shotClockWidget" class="hidden flex items-center gap-2">
+          <button id="shotClockResetBtn" class="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold active:scale-95">
+            Reset
+          </button>
+          <div class="w-10 h-8 rounded-lg bg-slate-900 border border-amber-500/50 flex items-center justify-center font-mono font-black text-base text-amber-400 shadow-inner" id="shotClockDisplay">
+            30
+          </div>
+        </div>
+      </div>
+
+
+      <!-- PLAYER SCORE CARDS (TACTILE TOUCH SCOREBOARD) -->
+      <div class="my-auto grid grid-cols-2 gap-3 sm:gap-5 py-2">
+        
+        <!-- PLAYER 1 SCORE CARD -->
+        <div id="p1Card" class="glass-panel rounded-3xl p-3 sm:p-5 flex flex-col justify-between relative overflow-hidden border-2 border-emerald-500/40 shadow-2xl transition-all duration-300">
+          
+          <!-- Breaker Badge Overlay -->
+          <div id="p1BreakerBadge" class="absolute top-2.5 right-2.5 px-2 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm">
+            <span>🎱 BREAK</span>
+          </div>
+
+          <!-- Player Header Info -->
+          <div class="space-y-1">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <h3 class="text-sm sm:text-base font-extrabold text-white truncate max-w-[110px] sm:max-w-[150px]" id="p1DisplayName">Player 1</h3>
+            </div>
+            <!-- Rack Progress Dots -->
+            <div class="flex items-center gap-1 pt-1 flex-wrap" id="p1ProgressDots">
+              <!-- Dynamically populated ball icons -->
+            </div>
+          </div>
+
+          <!-- Big Tap Score Area -->
+          <div class="my-4 text-center cursor-pointer active:scale-95 transition-transform" id="p1ScoreArea">
+            <span class="text-6xl sm:text-8xl font-black tracking-tight text-white font-sans drop-shadow-md" id="p1ScoreText">0</span>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-400/80 mt-1">Tap Card to +1 Point</p>
+          </div>
+
+          <!-- Minus Button & Quick Win Trigger -->
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+            <button type="button" id="p1MinusBtn" class="w-9 h-9 rounded-xl bg-slate-900 border border-slate-700/80 text-slate-400 font-black text-lg hover:text-white active:scale-90 transition-all flex items-center justify-center">
+              -
+            </button>
+            <button type="button" onclick="openQuickWinModal(1)" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-extrabold border border-emerald-500/30 active:scale-95 transition-all">
+              Log Win +
+            </button>
+          </div>
+
+        </div>
+
+        <!-- PLAYER 2 SCORE CARD -->
+        <div id="p2Card" class="glass-panel rounded-3xl p-3 sm:p-5 flex flex-col justify-between relative overflow-hidden border-2 border-slate-800 shadow-2xl transition-all duration-300">
+          
+          <!-- Breaker Badge Overlay -->
+          <div id="p2BreakerBadge" class="hidden absolute top-2.5 right-2.5 px-2 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm">
+            <span>🎱 BREAK</span>
+          </div>
+
+          <!-- Player Header Info -->
+          <div class="space-y-1">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+              <h3 class="text-sm sm:text-base font-extrabold text-white truncate max-w-[110px] sm:max-w-[150px]" id="p2DisplayName">Player 2</h3>
+            </div>
+            <!-- Rack Progress Dots -->
+            <div class="flex items-center gap-1 pt-1 flex-wrap" id="p2ProgressDots">
+              <!-- Dynamically populated ball icons -->
+            </div>
+          </div>
+
+          <!-- Big Tap Score Area -->
+          <div class="my-4 text-center cursor-pointer active:scale-95 transition-transform" id="p2ScoreArea">
+            <span class="text-6xl sm:text-8xl font-black tracking-tight text-white font-sans drop-shadow-md" id="p2ScoreText">0</span>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-amber-400/80 mt-1">Tap Card to +1 Point</p>
+          </div>
+
+          <!-- Minus Button & Quick Win Trigger -->
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+            <button type="button" id="p2MinusBtn" class="w-9 h-9 rounded-xl bg-slate-900 border border-slate-700/80 text-slate-400 font-black text-lg hover:text-white active:scale-90 transition-all flex items-center justify-center">
+              -
+            </button>
+            <button type="button" onclick="openQuickWinModal(2)" class="px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-extrabold border border-amber-500/30 active:scale-95 transition-all">
+              Log Win +
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- QUICK ACTION BAR (BOTTOM TOOLBAR) -->
+      <div class="glass-panel rounded-2xl p-2.5 flex items-center justify-between gap-1 sm:gap-2 shadow-2xl border border-slate-800 shrink-0">
+        
+        <!-- Undo Button -->
+        <button id="undoBtn" disabled class="flex-1 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-500 text-xs font-extrabold flex items-center justify-center gap-1 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Undo
+        </button>
+
+        <!-- Switch Breaker -->
+        <button id="switchBreakerBtn" class="flex-1 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-amber-400 text-xs font-extrabold flex items-center justify-center gap-1 active:scale-95 transition-all">
+          <i data-lucide="arrow-right-left" class="w-3.5 h-3.5"></i> Breaker
+        </button>
+
+        <!-- Rack History Log Drawer Toggle -->
+        <button id="rackLogDrawerBtn" class="flex-1 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-emerald-400 text-xs font-extrabold flex items-center justify-center gap-1 active:scale-95 transition-all">
+          <i data-lucide="list" class="w-3.5 h-3.5"></i> Racks (<span id="rackCountLabel">0</span>)
+        </button>
+
+        <!-- Reset / End Match -->
+        <button id="resetMatchBtn" class="py-2.5 px-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-extrabold flex items-center justify-center active:scale-95 transition-all">
+          <i data-lucide="power" class="w-4 h-4"></i>
+        </button>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- ============================================================== -->
+  <!-- MODAL 1: QUICK WIN LOG MODAL (Normal / Break & Run / 8-Ball on Break) -->
+  <!-- ============================================================== -->
+  <div id="quickWinModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden transition-opacity">
+    <div class="glass-panel bg-slate-900 rounded-3xl max-w-xs w-full p-5 space-y-4 shadow-2xl border border-slate-700">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+          <i data-lucide="award" class="w-4 h-4 text-emerald-400"></i> Log Rack Win
+        </h3>
+        <button onclick="closeQuickWinModal()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300 font-medium text-center">
+        Select win type for <span id="quickWinPlayerName" class="font-extrabold text-emerald-400">Player</span>:
+      </p>
+
+      <div class="space-y-2.5">
+        <button type="button" onclick="confirmRackWin('normal')" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-xs flex items-center justify-between px-4 active:scale-95 transition-all">
+          <span>Standard Rack Win</span>
+          <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+        </button>
+
+        <button type="button" onclick="confirmRackWin('break_run')" class="w-full py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs flex items-center justify-between px-4 active:scale-95 transition-all">
+          <div class="flex items-center gap-2">
+            <span>Break & Run</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-black">🔥 B&R</span>
+          </div>
+          <i data-lucide="flame" class="w-4 h-4 text-amber-400"></i>
+        </button>
+
+        <button type="button" onclick="confirmRackWin('eight_on_break')" class="w-full py-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-between px-4 active:scale-95 transition-all">
+          <div class="flex items-center gap-2">
+            <span>8-Ball on Break</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500 text-slate-950 font-black">⚡ 8-Break</span>
+          </div>
+          <i data-lucide="zap" class="w-4 h-4 text-emerald-400"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- MODAL 2: RACK HISTORY DRAWER MODAL -->
+  <!-- ============================================================== -->
+  <div id="rackLogDrawer" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex flex-col justify-end hidden transition-all">
+    <div class="glass-panel bg-slate-900 rounded-t-3xl max-w-md mx-auto w-full max-h-[80vh] flex flex-col shadow-2xl border-t border-slate-700">
+      
+      <!-- Drawer Header -->
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+          <i data-lucide="list" class="w-4 h-4 text-emerald-400"></i> Rack History Log
+        </h3>
+        <button id="closeRackLogBtn" class="p-1 rounded-lg text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- History Racks List -->
+      <div class="p-4 overflow-y-auto space-y-2.5 flex-1" id="rackLogList">
+        <!-- Dynamically rendered rack log items -->
+      </div>
+      
+    </div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- MODAL 3: MATCH VICTORY MODAL -->
+  <!-- ============================================================== -->
+  <div id="victoryModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-panel bg-slate-900 rounded-3xl max-w-sm w-full p-6 text-center space-y-5 shadow-2xl border border-emerald-500/50">
+      
+      <!-- Winner Trophy Icon -->
+      <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-500 to-amber-300 mx-auto flex items-center justify-center text-slate-950 shadow-gold-glow animate-pulse-gold">
+        <i data-lucide="trophy" class="w-10 h-10 stroke-[2.5]"></i>
+      </div>
+
+      <div class="space-y-1">
+        <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Match Champion</span>
+        <h2 class="text-3xl font-black text-white" id="victoryWinnerName">Player Name</h2>
+        <p class="text-xs font-semibold text-emerald-400" id="victoryScoreDetail">Defeated opponent 3 - 1</p>
+      </div>
+
+      <!-- Match Summary Stats Grid -->
+      <div class="grid grid-cols-3 gap-2 bg-slate-950/60 p-3 rounded-2xl border border-slate-800 text-left">
+        <div>
+          <p class="text-[10px] font-bold text-slate-400 uppercase">Duration</p>
+          <p class="text-xs font-black text-white" id="victoryDuration">12m 45s</p>
+        </div>
+        <div>
+          <p class="text-[10px] font-bold text-slate-400 uppercase">Break & Runs</p>
+          <p class="text-xs font-black text-amber-400" id="victoryBreakRuns">0</p>
+        </div>
+        <div>
+          <p class="text-[10px] font-bold text-slate-400 uppercase">Total Racks</p>
+          <p class="text-xs font-black text-emerald-400" id="victoryTotalRacks">4</p>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="space-y-2 pt-2">
+        <button id="rematchBtn" class="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm uppercase tracking-wider shadow-felt-glow active:scale-95 transition-all">
+          Rematch (Same Setup)
+        </button>
+        <button id="newMatchSetupBtn" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs active:scale-95 transition-all">
+          New Match Setup
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- MODAL 4: MATCH HISTORY ARCHIVE MODAL -->
+  <!-- ============================================================== -->
+  <div id="historyArchiveModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-panel bg-slate-900 rounded-3xl max-w-md w-full max-h-[85vh] flex flex-col p-5 shadow-2xl border border-slate-700 space-y-4">
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+          <i data-lucide="history" class="w-4 h-4 text-emerald-400"></i> Match History Archive
+        </h3>
+        <button id="closeHistoryArchiveBtn" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Saved Past Matches -->
+      <div class="flex-1 overflow-y-auto space-y-3 no-scrollbar" id="historyArchiveList">
+        <!-- Dynamically rendered past matches -->
+      </div>
+
+      <div class="pt-2 border-t border-slate-800 flex justify-between items-center">
+        <button id="clearHistoryBtn" class="text-xs font-bold text-rose-400 hover:text-rose-300">
+          Clear History
+        </button>
+        <button id="closeHistoryArchiveModalBtn" class="px-4 py-2 rounded-xl bg-slate-800 text-white font-bold text-xs">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- MODAL 5: SAFARI iOS "ADD TO HOME SCREEN" GUIDE -->
+  <!-- ============================================================== -->
+  <div id="pwaGuideModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-panel bg-slate-900 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl border border-amber-500/40 text-center">
+      
+      <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center">
+        <i data-lucide="share" class="w-7 h-7"></i>
+      </div>
+
+      <div class="space-y-2">
+        <h3 class="text-lg font-black text-white">Install on iPhone Home Screen</h3>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          For the full full-screen iOS app experience on iPhone 11:
+        </p>
+      </div>
+
+      <!-- Step By Step Guide -->
+      <div class="text-left bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-3 text-xs">
+        <div class="flex items-start gap-3">
+          <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center shrink-0">1</span>
+          <p class="text-slate-300">Tap the <span class="font-bold text-amber-400">Share</span> button at the bottom of Safari.</p>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center shrink-0">2</span>
+          <p class="text-slate-300">Scroll down and tap <span class="font-bold text-white">"Add to Home Screen"</span>.</p>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center shrink-0">3</span>
+          <p class="text-slate-300">Launch <span class="font-bold text-emerald-400">8-Ball Counter</span> directly from your home screen!</p>
+        </div>
+      </div>
+
+      <button id="closePwaGuideBtn" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs active:scale-95 transition-all">
+        Got It!
+      </button>
+
+    </div>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- JAVASCRIPT APP LOGIC & SOUND ENGINE -->
+  <!-- ============================================================== -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // -----------------------------------------------------------------
+    // STATE MANAGEMENT
+    // -----------------------------------------------------------------
+    let matchState = {
+      p1Name: "Player 1",
+      p2Name: "Player 2",
+      targetScore: 3,
+      p1Score: 0,
+      p2Score: 0,
+      currentBreaker: 1, // 1 or 2
+      breakRule: "alternate", // alternate, winner, loser, manual
+      shotClockDuration: 0, // 0 = off, 30, 45, 60
+      shotClockRemaining: 0,
+      shotClockRunning: false,
+      startTime: null,
+      elapsedSeconds: 0,
+      racksLog: [], // Array of { rackNum, winner: 1|2, winType: 'normal'|'break_run'|'eight_on_break', breaker: 1|2 }
+      isActive: false
+    };
+
+    let undoStack = [];
+    let matchTimerInterval = null;
+    let shotClockInterval = null;
+    let soundEnabled = true;
+    let selectedWinPlayer = 1;
+
+    // Web Audio API Context
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // Sound Synthesizers
+    function playPoolBallClick() {
+      if (!soundEnabled) return;
+      initAudio();
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.08);
+
+        gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.08);
+      } catch (e) {}
+    }
+
+    function playBeep(freq = 800, duration = 0.1) {
+      if (!soundEnabled) return;
+      initAudio();
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playWinSound() {
+      if (!soundEnabled) return;
+      initAudio();
+      try {
+        const notes = [440, 554.37, 659.25, 880];
+        notes.forEach((freq, idx) => {
+          setTimeout(() => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+          }, idx * 120);
+        });
+      } catch (e) {}
+    }
+
+    function triggerHaptic() {
+      if (navigator.vibrate) {
+        navigator.vibrate(25);
+      }
+    }
+
+
+    // -----------------------------------------------------------------
+    // DOM ELEMENTS
+    // -----------------------------------------------------------------
+    const setupScreen = document.getElementById('setupScreen');
+    const counterScreen = document.getElementById('counterScreen');
+    
+    const p1NameInput = document.getElementById('p1NameInput');
+    const p2NameInput = document.getElementById('p2NameInput');
+    const swapPlayersBtn = document.getElementById('swapPlayersBtn');
+    
+    const raceTargetGrid = document.getElementById('raceTargetGrid');
+    const customTargetInput = document.getElementById('customTargetInput');
+    const selectedTargetLabel = document.getElementById('selectedTargetLabel');
+    
+    const firstBreakGrid = document.getElementById('firstBreakGrid');
+    const coinFlipBtn = document.getElementById('coinFlipBtn');
+    const breakRuleSelect = document.getElementById('breakRuleSelect');
+    const shotClockGrid = document.getElementById('shotClockGrid');
+    const shotClockStatusText = document.getElementById('shotClockStatusText');
+    const startMatchBtn = document.getElementById('startMatchBtn');
+
+    // Counter Elements
+    const p1DisplayName = document.getElementById('p1DisplayName');
+    const p2DisplayName = document.getElementById('p2DisplayName');
+    const p1ScoreText = document.getElementById('p1ScoreText');
+    const p2ScoreText = document.getElementById('p2ScoreText');
+    const p1ScoreArea = document.getElementById('p1ScoreArea');
+    const p2ScoreArea = document.getElementById('p2ScoreArea');
+    const p1MinusBtn = document.getElementById('p1MinusBtn');
+    const p2MinusBtn = document.getElementById('p2MinusBtn');
+    const p1BreakerBadge = document.getElementById('p1BreakerBadge');
+    const p2BreakerBadge = document.getElementById('p2BreakerBadge');
+    const p1Card = document.getElementById('p1Card');
+    const p2Card = document.getElementById('p2Card');
+    const p1ProgressDots = document.getElementById('p1ProgressDots');
+    const p2ProgressDots = document.getElementById('p2ProgressDots');
+
+    const matchTargetBadge = document.getElementById('matchTargetBadge');
+    const matchElapsedTimer = document.getElementById('matchElapsedTimer');
+    const shotClockWidget = document.getElementById('shotClockWidget');
+    const shotClockDisplay = document.getElementById('shotClockDisplay');
+    const shotClockResetBtn = document.getElementById('shotClockResetBtn');
+
+    const undoBtn = document.getElementById('undoBtn');
+    const switchBreakerBtn = document.getElementById('switchBreakerBtn');
+    const rackLogDrawerBtn = document.getElementById('rackLogDrawerBtn');
+    const rackCountLabel = document.getElementById('rackCountLabel');
+    const resetMatchBtn = document.getElementById('resetMatchBtn');
+
+
+    // -----------------------------------------------------------------
+    // SETUP EVENT LISTENERS
+    // -----------------------------------------------------------------
+    swapPlayersBtn.addEventListener('click', () => {
+      const temp = p1NameInput.value;
+      p1NameInput.value = p2NameInput.value;
+      p2NameInput.value = temp;
+      triggerHaptic();
+      playPoolBallClick();
+    });
+
+    // Race Target Buttons
+    raceTargetGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('.race-btn');
+      if (!btn) return;
+      document.querySelectorAll('.race-btn').forEach(b => {
+        b.className = 'race-btn py-2.5 rounded-xl font-black text-sm border border-slate-800 bg-slate-900/80 text-slate-300 hover:border-slate-700 transition-all';
+      });
+      btn.className = 'race-btn py-2.5 rounded-xl font-black text-sm border bg-emerald-600 border-emerald-400 text-white shadow-felt-glow transition-all';
+      matchState.targetScore = parseInt(btn.dataset.target);
+      customTargetInput.value = '';
+      updateTargetLabel();
+      triggerHaptic();
+      playPoolBallClick();
+    });
+
+    customTargetInput.addEventListener('input', () => {
+      const val = parseInt(customTargetInput.value);
+      if (val && val > 0) {
+        document.querySelectorAll('.race-btn').forEach(b => {
+          b.className = 'race-btn py-2.5 rounded-xl font-black text-sm border border-slate-800 bg-slate-900/80 text-slate-300 transition-all';
+        });
+        matchState.targetScore = val;
+        updateTargetLabel();
+      }
+    });
+
+    function updateTargetLabel() {
+      selectedTargetLabel.textContent = `First to ${matchState.targetScore} Rack${matchState.targetScore > 1 ? 's' : ''}`;
+    }
+
+    // First Breaker Selection
+    firstBreakGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('.break-first-btn');
+      if (!btn) return;
+      document.querySelectorAll('.break-first-btn').forEach(b => {
+        b.className = 'break-first-btn py-2 px-1 rounded-xl text-xs font-bold border border-slate-800 bg-slate-900 text-slate-400 text-center transition-all';
+      });
+      btn.className = 'break-first-btn py-2 px-1 rounded-xl text-xs font-bold border border-emerald-500 bg-emerald-600/30 text-emerald-300 text-center transition-all';
+      matchState.currentBreaker = parseInt(btn.dataset.breaker);
+      triggerHaptic();
+      playPoolBallClick();
+    });
+
+    // Coin Flip Animation
+    coinFlipBtn.addEventListener('click', () => {
+      playPoolBallClick();
+      coinFlipBtn.innerHTML = `<span class="animate-spin">🪙</span> Flipping...`;
+      setTimeout(() => {
+        const winner = Math.random() < 0.5 ? 1 : 2;
+        matchState.currentBreaker = winner;
+        const name = winner === 1 ? (p1NameInput.value || "Player 1") : (p2NameInput.value || "Player 2");
+        coinFlipBtn.innerHTML = `<i data-lucide="coins" class="w-3.5 h-3.5"></i> ${name} Won!`;
+        lucide.createIcons();
+        
+        // Highlight active breaker button
+        document.querySelectorAll('.break-first-btn').forEach(b => {
+          if (parseInt(b.dataset.breaker) === winner) {
+            b.className = 'break-first-btn py-2 px-1 rounded-xl text-xs font-bold border border-emerald-500 bg-emerald-600/30 text-emerald-300 text-center transition-all';
+          } else {
+            b.className = 'break-first-btn py-2 px-1 rounded-xl text-xs font-bold border border-slate-800 bg-slate-900 text-slate-400 text-center transition-all';
+          }
+        });
+        triggerHaptic();
+      }, 600);
+    });
+
+    // Shot Clock Toggle
+    shotClockGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('.clock-btn');
+      if (!btn) return;
+      document.querySelectorAll('.clock-btn').forEach(b => {
+        b.className = 'clock-btn py-2 rounded-xl text-xs font-bold border border-slate-800 bg-slate-900 text-slate-400 transition-all';
+      });
+      btn.className = 'clock-btn py-2 rounded-xl text-xs font-bold border border-emerald-500 bg-emerald-600 text-white transition-all';
+      matchState.shotClockDuration = parseInt(btn.dataset.time);
+      shotClockStatusText.textContent = matchState.shotClockDuration === 0 ? 'Off' : `${matchState.shotClockDuration} seconds`;
+      triggerHaptic();
+      playPoolBallClick();
+    });
+
+    // Start Match Button
+    startMatchBtn.addEventListener('click', () => {
+      matchState.p1Name = p1NameInput.value.trim() || "Player 1";
+      matchState.p2Name = p2NameInput.value.trim() || "Player 2";
+      matchState.breakRule = breakRuleSelect.value;
+      matchState.p1Score = 0;
+      matchState.p2Score = 0;
+      matchState.racksLog = [];
+      matchState.elapsedSeconds = 0;
+      matchState.startTime = Date.now();
+      matchState.isActive = true;
+      undoStack = [];
+
+      startMatch();
+    });
+
+
+    // -----------------------------------------------------------------
+    // ACTIVE MATCH ENGINE
+    // -----------------------------------------------------------------
+    function startMatch() {
+      // Hide setup, show counter
+      setupScreen.classList.add('hidden');
+      counterScreen.classList.remove('hidden');
+
+      p1DisplayName.textContent = matchState.p1Name;
+      p2DisplayName.textContent = matchState.p2Name;
+      matchTargetBadge.textContent = `RACE TO ${matchState.targetScore}`;
+
+      document.getElementById('headerMatchStatus').textContent = `${matchState.p1Name} vs ${matchState.p2Name}`;
+
+      // Start elapsed match timer
+      if (matchTimerInterval) clearInterval(matchTimerInterval);
+      matchTimerInterval = setInterval(() => {
+        matchState.elapsedSeconds++;
+        updateTimerDisplay();
+        saveCurrentStateToLocalStorage();
+      }, 1000);
+
+      // Setup Shot Clock Widget
+      if (matchState.shotClockDuration > 0) {
+        shotClockWidget.classList.remove('hidden');
+        resetShotClock();
+      } else {
+        shotClockWidget.classList.add('hidden');
+      }
+
+      updateUI();
+      saveCurrentStateToLocalStorage();
+      playWinSound();
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(matchState.elapsedSeconds / 60).toString().padStart(2, '0');
+      const secs = (matchState.elapsedSeconds % 60).toString().padStart(2, '0');
+      matchElapsedTimer.textContent = `${mins}:${secs}`;
+    }
+
+    // Shot Clock Timer logic
+    function resetShotClock() {
+      if (matchState.shotClockDuration <= 0) return;
+      if (shotClockInterval) clearInterval(shotClockInterval);
+      
+      matchState.shotClockRemaining = matchState.shotClockDuration;
+      shotClockDisplay.textContent = matchState.shotClockRemaining;
+      shotClockDisplay.className = "w-10 h-8 rounded-lg bg-slate-900 border border-amber-500/50 flex items-center justify-center font-mono font-black text-base text-amber-400 shadow-inner";
+
+      shotClockInterval = setInterval(() => {
+        matchState.shotClockRemaining--;
+        shotClockDisplay.textContent = matchState.shotClockRemaining;
+
+        if (matchState.shotClockRemaining <= 10 && matchState.shotClockRemaining > 0) {
+          shotClockDisplay.className = "w-10 h-8 rounded-lg bg-rose-500/20 border border-rose-500 flex items-center justify-center font-mono font-black text-base text-rose-400 shadow-inner animate-pulse";
+          playBeep(900, 0.05);
+        }
+
+        if (matchState.shotClockRemaining <= 0) {
+          clearInterval(shotClockInterval);
+          shotClockDisplay.textContent = "0";
+          playBeep(400, 0.4);
+          triggerHaptic();
+        }
+      }, 1000);
+    }
+
+    shotClockResetBtn.addEventListener('click', () => {
+      resetShotClock();
+      playPoolBallClick();
+    });
+
+
+    // -----------------------------------------------------------------
+    // SCORE UPDATES & RACK WINNING LOGIC
+    // -----------------------------------------------------------------
+    function pushUndoState() {
+      undoStack.push(JSON.parse(JSON.stringify(matchState)));
+      if (undoStack.length > 20) undoStack.shift();
+      undoBtn.disabled = false;
+      undoBtn.classList.remove('opacity-40');
+    }
+
+    undoBtn.addEventListener('click', () => {
+      if (undoStack.length === 0) return;
+      matchState = undoStack.pop();
+      if (undoStack.length === 0) {
+        undoBtn.disabled = true;
+        undoBtn.classList.add('opacity-40');
+      }
+      playPoolBallClick();
+      triggerHaptic();
+      updateUI();
+      saveCurrentStateToLocalStorage();
+    });
+
+    // Tap Score Cards to increment point directly
+    p1ScoreArea.addEventListener('click', () => {
+      addPoint(1, 'normal');
+    });
+
+    p2ScoreArea.addEventListener('click', () => {
+      addPoint(2, 'normal');
+    });
+
+    // Minus Buttons
+    p1MinusBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (matchState.p1Score > 0) {
+        pushUndoState();
+        matchState.p1Score--;
+        playPoolBallClick();
+        triggerHaptic();
+        updateUI();
+      }
+    });
+
+    p2MinusBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (matchState.p2Score > 0) {
+        pushUndoState();
+        matchState.p2Score--;
+        playPoolBallClick();
+        triggerHaptic();
+        updateUI();
+      }
+    });
+
+    function addPoint(playerNum, winType = 'normal') {
+      pushUndoState();
+
+      const currentBreaker = matchState.currentBreaker;
+      
+      if (playerNum === 1) {
+        matchState.p1Score++;
+      } else {
+        matchState.p2Score++;
+      }
+
+      // Record Rack in Log
+      matchState.racksLog.push({
+        rackNum: matchState.racksLog.length + 1,
+        winner: playerNum,
+        winType: winType,
+        breaker: currentBreaker
+      });
+
+      // Apply Break Order Rotation
+      rotateBreaker(playerNum);
+
+      // Audio & Haptic Feedback
+      playPoolBallClick();
+      triggerHaptic();
+
+      // Reset shot clock on rack win
+      resetShotClock();
+
+      updateUI();
+      saveCurrentStateToLocalStorage();
+
+      // Check Match Victory
+      if (matchState.p1Score >= matchState.targetScore || matchState.p2Score >= matchState.targetScore) {
+        handleMatchVictory(matchState.p1Score >= matchState.targetScore ? 1 : 2);
+      }
+    }
+
+    function rotateBreaker(rackWinner) {
+      if (matchState.breakRule === 'alternate') {
+        matchState.currentBreaker = matchState.currentBreaker === 1 ? 2 : 1;
+      } else if (matchState.breakRule === 'winner') {
+        matchState.currentBreaker = rackWinner;
+      } else if (matchState.breakRule === 'loser') {
+        matchState.currentBreaker = rackWinner === 1 ? 2 : 1;
+      }
+      // 'manual' keeps breaker as is until manually switched
+    }
+
+    // Switch Breaker Button
+    switchBreakerBtn.addEventListener('click', () => {
+      pushUndoState();
+      matchState.currentBreaker = matchState.currentBreaker === 1 ? 2 : 1;
+      playPoolBallClick();
+      triggerHaptic();
+      updateUI();
+      saveCurrentStateToLocalStorage();
+    });
+
+
+    // -----------------------------------------------------------------
+    // UI RENDERER & PROGRESS DOTS
+    // -----------------------------------------------------------------
+    function updateUI() {
+      p1ScoreText.textContent = matchState.p1Score;
+      p2ScoreText.textContent = matchState.p2Score;
+
+      // Breaker Badges
+      if (matchState.currentBreaker === 1) {
+        p1BreakerBadge.classList.remove('hidden');
+        p2BreakerBadge.classList.add('hidden');
+        p1Card.className = "glass-panel rounded-3xl p-3 sm:p-5 flex flex-col justify-between relative overflow-hidden border-2 border-emerald-500 shadow-felt-glow transition-all duration-300";
+        p2Card.className = "glass-panel rounded-3xl p-3 sm:p-5 flex flex-col justify-between relative overflow-hidden border-2 border-slate-800 shadow-2xl transition-all duration-300 opacity-90";
+      } else {
+        p1BreakerBadge.classList.add('hidden');
+        p2BreakerBadge.classList.remove('hidden');
+        p1Card.className = "glass-panel rounded-3xl p-3 sm:p-5 flex flex-col justify-between relative overflow-hidden border-2 border-slate-800 shadow-2xl transition-all duration-300 opacity-90";
+        p2Card.className = "glass-panel rounded-3xl p-3 sm:p-5 flex flex-col justify-between relative overflow-hidden border-2 border-amber-500 shadow-gold-glow transition-all duration-300";
+      }
+
+      // Render Rack Progress Ball Badges
+      renderProgressDots(p1ProgressDots, matchState.p1Score, matchState.targetScore, 'bg-emerald-500');
+      renderProgressDots(p2ProgressDots, matchState.p2Score, matchState.targetScore, 'bg-amber-500');
+
+      rackCountLabel.textContent = matchState.racksLog.length;
+      updateTimerDisplay();
+    }
+
+    function renderProgressDots(container, currentScore, targetScore, activeColorClass) {
+      container.innerHTML = '';
+      for (let i = 0; i < targetScore; i++) {
+        const dot = document.createElement('div');
+        if (i < currentScore) {
+          dot.className = `w-3.5 h-3.5 rounded-full ${activeColorClass} border border-white/40 shadow-sm flex items-center justify-center text-[8px] font-black text-slate-950`;
+          dot.textContent = "✓";
+        } else {
+          dot.className = "w-3.5 h-3.5 rounded-full bg-slate-900 border border-slate-700/80";
+        }
+        container.appendChild(dot);
+      }
+    }
+
+
+    // -----------------------------------------------------------------
+    // QUICK WIN LOG MODAL
+    // -----------------------------------------------------------------
+    const quickWinModal = document.getElementById('quickWinModal');
+    const quickWinPlayerName = document.getElementById('quickWinPlayerName');
+
+    function openQuickWinModal(playerNum) {
+      selectedWinPlayer = playerNum;
+      quickWinPlayerName.textContent = playerNum === 1 ? matchState.p1Name : matchState.p2Name;
+      quickWinModal.classList.remove('hidden');
+      playPoolBallClick();
+    }
+
+    function closeQuickWinModal() {
+      quickWinModal.classList.add('hidden');
+    }
+
+    function confirmRackWin(winType) {
+      closeQuickWinModal();
+      addPoint(selectedWinPlayer, winType);
+    }
+
+
+    // -----------------------------------------------------------------
+    // RACK LOG DRAWER
+    // -----------------------------------------------------------------
+    const rackLogDrawer = document.getElementById('rackLogDrawer');
+    const rackLogList = document.getElementById('rackLogList');
+
+    rackLogDrawerBtn.addEventListener('click', () => {
+      renderRackLogList();
+      rackLogDrawer.classList.remove('hidden');
+      playPoolBallClick();
+    });
+
+    document.getElementById('closeRackLogBtn').addEventListener('click', () => {
+      rackLogDrawer.classList.add('hidden');
+    });
+
+    function renderRackLogList() {
+      rackLogList.innerHTML = '';
+      if (matchState.racksLog.length === 0) {
+        rackLogList.innerHTML = `<p class="text-xs text-slate-500 text-center py-6 italic">No racks played yet in this match.</p>`;
+        return;
+      }
+
+      matchState.racksLog.slice().reverse().forEach((rack) => {
+        const winnerName = rack.winner === 1 ? matchState.p1Name : matchState.p2Name;
+        const breakerName = rack.breaker === 1 ? matchState.p1Name : matchState.p2Name;
+
+        let badge = `<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-bold">Standard Win</span>`;
+        if (rack.winType === 'break_run') {
+          badge = `<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black">🔥 Break & Run</span>`;
+        } else if (rack.winType === 'eight_on_break') {
+          badge = `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black">⚡ 8-Ball on Break</span>`;
+        }
+
+        const item = document.createElement('div');
+        item.className = "glass-panel p-3 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs";
+        item.innerHTML = `
+          <div class="space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="font-black text-white">Rack ${rack.rackNum}</span>
+              ${badge}
+            </div>
+            <p class="text-[11px] text-slate-400">Winner: <span class="font-bold text-white">${winnerName}</span></p>
+          </div>
+          <div class="text-right text-[10px] text-slate-500 font-bold">
+            Breaker: ${breakerName}
+          </div>
+        `;
+        rackLogList.appendChild(item);
+      });
+    }
+
+
+    // -----------------------------------------------------------------
+    // MATCH VICTORY & CONFETTI
+    // -----------------------------------------------------------------
+    const victoryModal = document.getElementById('victoryModal');
+    const victoryWinnerName = document.getElementById('victoryWinnerName');
+    const victoryScoreDetail = document.getElementById('victoryScoreDetail');
+    const victoryDuration = document.getElementById('victoryDuration');
+    const victoryBreakRuns = document.getElementById('victoryBreakRuns');
+    const victoryTotalRacks = document.getElementById('victoryTotalRacks');
+
+    function handleMatchVictory(winnerNum) {
+      if (matchTimerInterval) clearInterval(matchTimerInterval);
+      if (shotClockInterval) clearInterval(shotClockInterval);
+
+      const winnerName = winnerNum === 1 ? matchState.p1Name : matchState.p2Name;
+      const loserName = winnerNum === 1 ? matchState.p2Name : matchState.p1Name;
+      const winnerScore = winnerNum === 1 ? matchState.p1Score : matchState.p2Score;
+      const loserScore = winnerNum === 1 ? matchState.p2Score : matchState.p1Score;
+
+      victoryWinnerName.textContent = winnerName;
+      victoryScoreDetail.textContent = `Defeated ${loserName} (${winnerScore} - ${loserScore})`;
+
+      const mins = Math.floor(matchState.elapsedSeconds / 60);
+      const secs = matchState.elapsedSeconds % 60;
+      victoryDuration.textContent = `${mins}m ${secs}s`;
+
+      const breakRuns = matchState.racksLog.filter(r => r.winType === 'break_run').length;
+      victoryBreakRuns.textContent = breakRuns;
+      victoryTotalRacks.textContent = matchState.racksLog.length;
+
+      victoryModal.classList.remove('hidden');
+
+      // Trigger Confetti Effect
+      if (window.confetti) {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      }
+
+      playWinSound();
+
+      // Save match to Archive History in localStorage
+      saveMatchToArchive({
+        date: new Date().toLocaleDateString(),
+        p1Name: matchState.p1Name,
+        p2Name: matchState.p2Name,
+        p1Score: matchState.p1Score,
+        p2Score: matchState.p2Score,
+        winner: winnerName,
+        duration: `${mins}m ${secs}s`,
+        racks: matchState.racksLog.length
+      });
+
+      // Clear current match active state
+      localStorage.removeItem('activeMatchCounterState');
+    }
+
+    document.getElementById('rematchBtn').addEventListener('click', () => {
+      victoryModal.classList.add('hidden');
+      matchState.p1Score = 0;
+      matchState.p2Score = 0;
+      matchState.racksLog = [];
+      matchState.elapsedSeconds = 0;
+      matchState.startTime = Date.now();
+      matchState.isActive = true;
+      undoStack = [];
+      startMatch();
+    });
+
+    document.getElementById('newMatchSetupBtn').addEventListener('click', () => {
+      victoryModal.classList.add('hidden');
+      counterScreen.classList.add('hidden');
+      setupScreen.classList.remove('hidden');
+      if (matchTimerInterval) clearInterval(matchTimerInterval);
+      if (shotClockInterval) clearInterval(shotClockInterval);
+      localStorage.removeItem('activeMatchCounterState');
+    });
+
+    resetMatchBtn.addEventListener('click', () => {
+      if (confirm('Are you sure you want to end this match and return to setup?')) {
+        counterScreen.classList.add('hidden');
+        setupScreen.classList.remove('hidden');
+        if (matchTimerInterval) clearInterval(matchTimerInterval);
+        if (shotClockInterval) clearInterval(shotClockInterval);
+        localStorage.removeItem('activeMatchCounterState');
+      }
+    });
+
+
+    // -----------------------------------------------------------------
+    // LOCAL STORAGE PERSISTENCE & HISTORY ARCHIVE
+    // -----------------------------------------------------------------
+    function saveCurrentStateToLocalStorage() {
+      localStorage.setItem('activeMatchCounterState', JSON.stringify(matchState));
+    }
+
+    function loadStateFromLocalStorage() {
+      const saved = localStorage.getItem('activeMatchCounterState');
+      if (saved) {
+        try {
+          matchState = JSON.parse(saved);
+          if (matchState.isActive) {
+            startMatch();
+          }
+        } catch (e) {}
+      }
+    }
+
+    function saveMatchToArchive(matchRecord) {
+      let archive = [];
+      try {
+        archive = JSON.parse(localStorage.getItem('matchCounterArchive') || '[]');
+      } catch (e) {}
+      archive.unshift(matchRecord);
+      localStorage.setItem('matchCounterArchive', JSON.stringify(archive));
+    }
+
+    // History Archive Modal Elements
+    const historyBtn = document.getElementById('historyBtn');
+    const historyArchiveModal = document.getElementById('historyArchiveModal');
+    const historyArchiveList = document.getElementById('historyArchiveList');
+
+    historyBtn.addEventListener('click', () => {
+      renderHistoryArchive();
+      historyArchiveModal.classList.remove('hidden');
+      playPoolBallClick();
+    });
+
+    document.getElementById('closeHistoryArchiveBtn').addEventListener('click', () => {
+      historyArchiveModal.classList.add('hidden');
+    });
+
+    document.getElementById('closeHistoryArchiveModalBtn').addEventListener('click', () => {
+      historyArchiveModal.classList.add('hidden');
+    });
+
+    document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+      if (confirm('Clear all saved match history?')) {
+        localStorage.removeItem('matchCounterArchive');
+        renderHistoryArchive();
+      }
+    });
+
+    function renderHistoryArchive() {
+      historyArchiveList.innerHTML = '';
+      let archive = [];
+      try {
+        archive = JSON.parse(localStorage.getItem('matchCounterArchive') || '[]');
+      } catch (e) {}
+
+      if (archive.length === 0) {
+        historyArchiveList.innerHTML = `<p class="text-xs text-slate-500 text-center py-8 italic">No completed matches saved yet.</p>`;
+        return;
+      }
+
+      archive.forEach((match) => {
+        const item = document.createElement('div');
+        item.className = "glass-panel p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5 text-xs";
+        item.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-slate-400">${match.date}</span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold border border-emerald-500/30">
+              🏆 ${match.winner}
+            </span>
+          </div>
+          <div class="flex items-center justify-between font-bold text-white text-sm">
+            <span>${match.p1Name} <span class="text-emerald-400">${match.p1Score}</span></span>
+            <span class="text-slate-500 text-xs">vs</span>
+            <span><span class="text-amber-400">${match.p2Score}</span> ${match.p2Name}</span>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-900">
+            <span>Duration: ${match.duration}</span>
+            <span>${match.racks} Racks Played</span>
+          </div>
+        `;
+        historyArchiveList.appendChild(item);
+      });
+    }
+
+
+    // -----------------------------------------------------------------
+    // SOUND & PWA GUIDE CONTROLS
+    // -----------------------------------------------------------------
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const soundOnIcon = document.getElementById('soundOnIcon');
+    const soundOffIcon = document.getElementById('soundOffIcon');
+
+    soundToggleBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      if (soundEnabled) {
+        soundOnIcon.classList.remove('hidden');
+        soundOffIcon.classList.add('hidden');
+      } else {
+        soundOnIcon.classList.add('hidden');
+        soundOffIcon.classList.remove('hidden');
+      }
+      triggerHaptic();
+    });
+
+    const pwaGuideBtn = document.getElementById('pwaGuideBtn');
+    const pwaGuideModal = document.getElementById('pwaGuideModal');
+
+    pwaGuideBtn.addEventListener('click', () => {
+      pwaGuideModal.classList.remove('hidden');
+      playPoolBallClick();
+    });
+
+    document.getElementById('closePwaGuideBtn').addEventListener('click', () => {
+      pwaGuideModal.classList.add('hidden');
+    });
+
+
+    // -----------------------------------------------------------------
+    // INIT ON LOAD
+    // -----------------------------------------------------------------
+    window.addEventListener('load', () => {
+      loadStateFromLocalStorage();
+    });
+
+  </script>
+</body>
+</html>
